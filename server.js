@@ -137,7 +137,7 @@ app.get('/', (req, res) => {
       <button id="qr-close">&times;</button>
       <h2 id="qr-title"></h2>
       <p id="qr-url"></p>
-      <canvas id="qr-canvas"></canvas>
+      <div id="qr-canvas"></div>
       <br>
       <button id="qr-copy">Copy Image</button>
     </div>
@@ -160,8 +160,9 @@ app.get('/', (req, res) => {
           title.textContent = name;
           urlEl.textContent = url;
           // Clear previous QR code
-          canvas.innerHTML = '';
-          new QRCode(canvas, {
+          const container = document.getElementById('qr-canvas');
+          container.innerHTML = '';
+          new QRCode(container, {
             text: url,
             width: 256,
             height: 256,
@@ -178,7 +179,8 @@ app.get('/', (req, res) => {
 
       copyBtn.addEventListener('click', () => {
         // qrcodejs renders an img inside the container, grab that
-        const img = canvas.querySelector('img');
+        const container = document.getElementById('qr-canvas');
+        const img = container.querySelector('img');
         if (!img) return;
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = img.naturalWidth;
