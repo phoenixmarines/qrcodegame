@@ -5,8 +5,8 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Directory containing GIF files (project root)
-const GIF_DIR = __dirname;
+// Directory containing GIF files
+const GIF_DIR = path.join(__dirname, 'gifs');
 
 // Scan for .gif files and build slug map
 function getGifMap() {
