@@ -8,6 +8,16 @@ const PORT = process.env.PORT || 3000;
 // Directory containing GIF files
 const GIF_DIR = path.join(__dirname, 'gifs');
 
+// Parse the number range from the beginning of a filename
+// e.g. "2-5 Medium Punch.gif" → { min: 2, max: 5 }
+function parseRange(fileName) {
+  const match = fileName.match(/^(\d+)-(\d+)\b/);
+  if (match) {
+    return { min: parseInt(match[1], 10), max: parseInt(match[2], 10) };
+  }
+  return { min: 1, max: 5 }; // fallback
+}
+
 // Scan for .gif files and build slug map
 function getGifMap() {
   const files = fs.readdirSync(GIF_DIR).filter(f => f.toLowerCase().endsWith('.gif'));
@@ -18,7 +28,7 @@ function getGifMap() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
-    map[slug] = file;
+    map[slug] = { file, range: parseRange(file) };
   }
   return map;
 }
@@ -37,7 +47,7 @@ app.use('/gifs', express.static(GIF_DIR, {
 app.get('/', (req, res) => {
   const gifMap = getGifMap();
   const links = Object.entries(gifMap)
-    .map(([slug, file]) => `<li><a href="/${slug}">${file}</a></li>`)
+    .map(([slug, { file, range }]) => `<li><a href="/${slug}">${file}</a> <span style="color:#888;font-size:0.85em">(${range.min}-${range.max})</span></li>`)
     .join('\n');
 
   res.send(`<!DOCTYPE html>
@@ -67,11 +77,13 @@ app.get('/', (req, res) => {
 app.get('/:slug', (req, res) => {
   const gifMap = getGifMap();
   const { slug } = req.params;
-  const fileName = gifMap[slug];
+  const entry = gifMap[slug];
 
-  if (!fileName) {
+  if (!entry) {
     return res.status(404).send('Not found');
   }
+
+  const { file: fileName, range } = entry;
 
   // URL-encode the filename for the /gifs path
   const encodedFile = encodeURIComponent(fileName);
@@ -82,6 +94,10 @@ app.get('/:slug', (req, res) => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${slug}</title>
+  <script>
+    const NUMBER_MIN = ${range.min};
+    const NUMBER_MAX = ${range.max};
+  </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -184,7 +200,7 @@ app.get('/:slug', (req, res) => {
             gifContainer.style.display = 'none';
             loading.style.display = 'none';
 
-            const number = Math.floor(Math.random() * 5) + 1;
+            const number = Math.floor(Math.random() * (NUMBER_MAX - NUMBER_MIN + 1)) + NUMBER_MIN;
             numberDisplay.textContent = number;
             numberDisplay.style.display = 'block';
           }, duration);
@@ -193,7 +209,7 @@ app.get('/:slug', (req, res) => {
           setTimeout(() => {
             gifContainer.style.display = 'none';
             loading.style.display = 'none';
-            const number = Math.floor(Math.random() * 5) + 1;
+            const number = Math.floor(Math.random() * (NUMBER_MAX - NUMBER_MIN + 1)) + NUMBER_MIN;
             numberDisplay.textContent = number;
             numberDisplay.style.display = 'block';
           }, 3000);
