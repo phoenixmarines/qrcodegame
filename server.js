@@ -102,7 +102,7 @@ app.get('/', (req, res) => {
     }
     #qr-modal-content h2 { margin: 0 0 5px 0; font-size: 1.1em; color: #eee; }
     #qr-modal-content p { margin: 0 0 15px 0; color: #888; font-size: 0.85em; word-break: break-all; }
-    #qr-modal-content canvas { border-radius: 8px; }
+    #qr-canvas { background: #fff; padding: 12px; border-radius: 8px; display: inline-block; }
     #qr-close {
       position: absolute;
       top: 10px; right: 14px;
@@ -182,10 +182,14 @@ app.get('/', (req, res) => {
         const container = document.getElementById('qr-canvas');
         const img = container.querySelector('img');
         if (!img) return;
+        const border = 32;
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = img.naturalWidth;
-        tempCanvas.height = img.naturalHeight;
-        tempCanvas.getContext('2d').drawImage(img, 0, 0);
+        tempCanvas.width = img.naturalWidth + border * 2;
+        tempCanvas.height = img.naturalHeight + border * 2;
+        const ctx = tempCanvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        ctx.drawImage(img, border, border);
         tempCanvas.toBlob(blob => {
           const item = new ClipboardItem({ 'image/png': blob });
           navigator.clipboard.write([item]).then(() => {
