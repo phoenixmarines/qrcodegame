@@ -50,10 +50,10 @@ app.get('/', (req, res) => {
 
   const links = Object.entries(gifMap)
     .map(([slug, { file, range }]) => {
-      const gifUrl = `${baseUrl}/gifs/${encodeURIComponent(file)}`;
+      const pageUrl = `${baseUrl}/${slug}`;
       return `<li>
         <a href="/${slug}">${file}</a> <span style="color:#888;font-size:0.85em">(${range.min}-${range.max})</span>
-        <button class="qr-btn" data-url="${gifUrl}" data-name="${file}">QR Code</button>
+        <button class="qr-btn" data-url="${pageUrl}" data-name="${file}">QR Code</button>
       </li>`;
     })
     .join('\n');
@@ -143,7 +143,7 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     (function() {
       const modal = document.getElementById('qr-modal');
@@ -159,8 +159,15 @@ app.get('/', (req, res) => {
           const name = btn.dataset.name;
           title.textContent = name;
           urlEl.textContent = url;
-          QRCode.toCanvas(canvas, url, { width: 256, margin: 2, color: { dark: '#000', light: '#fff' } }, function(error) {
-            if (error) console.error(error);
+          // Clear previous QR code
+          canvas.innerHTML = '';
+          new QRCode(canvas, {
+            text: url,
+            width: 256,
+            height: 256,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
           });
           modal.classList.add('open');
         });
@@ -170,7 +177,14 @@ app.get('/', (req, res) => {
       modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
 
       copyBtn.addEventListener('click', () => {
-        canvas.toBlob(blob => {
+        // qrcodejs renders an img inside the container, grab that
+        const img = canvas.querySelector('img');
+        if (!img) return;
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.naturalWidth;
+        tempCanvas.height = img.naturalHeight;
+        tempCanvas.getContext('2d').drawImage(img, 0, 0);
+        tempCanvas.toBlob(blob => {
           const item = new ClipboardItem({ 'image/png': blob });
           navigator.clipboard.write([item]).then(() => {
             copyBtn.textContent = 'Copied!';
