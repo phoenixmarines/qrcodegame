@@ -46,8 +46,16 @@ app.use('/gifs', express.static(GIF_DIR, {
 // Home page — list all GIFs
 app.get('/', (req, res) => {
   const gifMap = getGifMap();
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+
   const links = Object.entries(gifMap)
-    .map(([slug, { file, range }]) => `<li><a href="/${slug}">${file}</a> <span style="color:#888;font-size:0.85em">(${range.min}-${range.max})</span></li>`)
+    .map(([slug, { file, range }]) => {
+      const gifUrl = `${baseUrl}/gifs/${encodeURIComponent(file)}`;
+      return `<li>
+        <a href="/${slug}">${file}</a> <span style="color:#888;font-size:0.85em">(${range.min}-${range.max})</span>
+        <button class="qr-btn" data-url="${gifUrl}" data-name="${file}">QR Code</button>
+      </li>`;
+    })
     .join('\n');
 
   res.send(`<!DOCTYPE html>
@@ -62,13 +70,116 @@ app.get('/', (req, res) => {
     a:hover { text-decoration: underline; }
     h1 { font-size: 1.5em; }
     ul { list-style: none; padding: 0; }
-    li { padding: 8px 0; border-bottom: 1px solid #333; }
+    li { padding: 8px 0; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .qr-btn {
+      background: #2a2a3a;
+      color: #6cf;
+      border: 1px solid #6cf;
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: background 0.2s;
+    }
+    .qr-btn:hover { background: #3a3a5a; }
+    #qr-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    #qr-modal.open { display: flex; }
+    #qr-modal-content {
+      background: #1e1e2e;
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      position: relative;
+      max-width: 90vw;
+    }
+    #qr-modal-content h2 { margin: 0 0 5px 0; font-size: 1.1em; color: #eee; }
+    #qr-modal-content p { margin: 0 0 15px 0; color: #888; font-size: 0.85em; word-break: break-all; }
+    #qr-modal-content canvas { border-radius: 8px; }
+    #qr-close {
+      position: absolute;
+      top: 10px; right: 14px;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.5em;
+      cursor: pointer;
+    }
+    #qr-close:hover { color: #fff; }
+    #qr-copy {
+      margin-top: 15px;
+      background: #6cf;
+      color: #111;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 600;
+    }
+    #qr-copy:hover { background: #5bf; }
   </style>
 </head>
 <body>
   <h1>QR Code Game</h1>
   <p>Choose a move:</p>
   <ul>${links}</ul>
+
+  <div id="qr-modal">
+    <div id="qr-modal-content">
+      <button id="qr-close">&times;</button>
+      <h2 id="qr-title"></h2>
+      <p id="qr-url"></p>
+      <canvas id="qr-canvas"></canvas>
+      <br>
+      <button id="qr-copy">Copy Image</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script>
+    (function() {
+      const modal = document.getElementById('qr-modal');
+      const title = document.getElementById('qr-title');
+      const urlEl = document.getElementById('qr-url');
+      const canvas = document.getElementById('qr-canvas');
+      const closeBtn = document.getElementById('qr-close');
+      const copyBtn = document.getElementById('qr-copy');
+
+      document.querySelectorAll('.qr-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const url = btn.dataset.url;
+          const name = btn.dataset.name;
+          title.textContent = name;
+          urlEl.textContent = url;
+          QRCode.toCanvas(canvas, url, { width: 256, margin: 2, color: { dark: '#000', light: '#fff' } }, function(error) {
+            if (error) console.error(error);
+          });
+          modal.classList.add('open');
+        });
+      });
+
+      closeBtn.addEventListener('click', () => modal.classList.remove('open'));
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
+
+      copyBtn.addEventListener('click', () => {
+        canvas.toBlob(blob => {
+          const item = new ClipboardItem({ 'image/png': blob });
+          navigator.clipboard.write([item]).then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy Image'; }, 1500);
+          });
+        });
+      });
+    })();
+  </script>
 </body>
 </html>`);
 });
